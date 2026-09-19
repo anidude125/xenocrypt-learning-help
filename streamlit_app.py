@@ -5,12 +5,14 @@ import string
 # Set up mobile page configuration
 st.set_page_config(page_title="Xenocrypt Solver Pro", page_icon="📝", layout="centered")
 
-st.title("📝 Xenocrypt Analyzer Pro v3")
+st.title("📝 Xenocrypt Analyzer Pro v4")
 st.write("Paste your Spanish text below to extract key Codebusters data.")
 
-# Initialize persistent session storage for accumulated prompt text
+# Initialize persistent session storage arrays
 if "accumulated_text" not in st.session_state:
     st.session_state.accumulated_text = ""
+if "past_prompts_list" not in st.session_state:
+    st.session_state.past_prompts_list = []
 
 # Base Spanish Dictionary (Expanded Structure Words)
 common_words_dict = {
@@ -49,21 +51,6 @@ esp_freq_data = [
     {"Letter": "X", "Pct": "0.2%"},  {"Letter": "W", "Pct": "0.1%"},  {"Letter": "K", "Pct": "0.1%"}
 ]
 
-# Common Spanish Prefixes and Suffixes for Cryptography
-affixes_data = [
-    {"Type": "Prefix", "Pattern": "DES-", "Meaning": "Undoing / Opposite (like un-/dis-)", "Example": "deshacer (undo)"},
-    {"Type": "Prefix", "Prefix": "CON- / COM-", "Meaning": "With / Together (like con-)", "Example": "compartir (share)"},
-    {"Type": "Prefix", "Pattern": "IN- / IM-", "Meaning": "Not / Opposite (like in-/im-)", "Example": "incapaz (incapable)"},
-    {"Type": "Prefix", "Pattern": "RE-", "Meaning": "Repetition / Intensity (like re-)", "Example": "reorganizar (reorganize)"},
-    {"Type": "Prefix", "Pattern": "PRE-", "Meaning": "Before (like pre-)", "Example": "predecir (predict)"},
-    {"Type": "Suffix", "Pattern": "-CIÓN / -SIÓN", "Meaning": "Action / Condition (like -tion)", "Example": "nación (nation)"},
-    {"Type": "Suffix", "Pattern": "-DAD / -TAD", "Meaning": "State of being (like -ty)", "Example": "felicidad (happiness)"},
-    {"Type": "Suffix", "Pattern": "-MENTE", "Meaning": "Adverb marker (like -ly)", "Example": "rápidamente (quickly)"},
-    {"Type": "Suffix", "Pattern": "-DOR / -DORA", "Meaning": "Person / Tool doing action (like -er)", "Example": "trabajador (worker)"},
-    {"Type": "Suffix", "Pattern": "-ADO / -IDO", "Meaning": "Past participle endings (like -ed)", "Example": "hablado (spoken)"},
-    {"Type": "Suffix", "Pattern": "-OSO / -OSA", "Meaning": "Full of / Having (like -ous)", "Example": "famoso (famous)"}
-]
-
 # Cryptographic rules lookup for Spanish 2-letter starting letters
 spanish_two_letter_rules = {
     "A": "AL (to the), AS (ace/you have), AN (they have)",
@@ -79,10 +66,17 @@ spanish_two_letter_rules = {
 
 # Translation helper map for length-specific automated dictionary lookups
 word_translator = {
-    "EL": "the", "LA": "the", "DE": "of/from", "EN": "in/on", "UN": "a/an", "ES": "is", "SU": "his/her", "AL": "to the", "LO": "it", "NO": "no", "SI": "if/yes", "ME": "me", "MI": "my", "SE": "oneself", "TE": "you", "TU": "your", "NI": "neither",
-    "QUE": "that/which", "LOS": "the", "LAS": "the", "CON": "with", "POR": "for/by", "UNA": "a/an", "SON": "are", "DEL": "of the", "MAS": "more", "UNO": "one", "SIN": "without", "MUY": "very", "LES": "them", "ASI": "like this",
-    "PARA": "for/to", "COMO": "like/as", "TODO": "all", "ESTE": "this", "ESTA": "this/is", "PERO": "but", "BIEN": "well", "CUAN": "how", "AÑO": "year", "DIAS": "days", "ERAN": "were", "ESOS": "those", "ESAS": "those"
+    "EL": "the", "LA": "the", "LOS": "the", "LAS": "the", "DE": "of/from", "EN": "in/on", "UN": "a/an", "UNA": "a/an", "ES": "is", "SON": "are", "SU": "his/her", "AL": "to the", "LO": "it", "NO": "no", "SI": "if/yes", "ME": "me", "MI": "my", "SE": "oneself", "TE": "you", "TU": "your", "NI": "neither", "Y": "and", "E": "and", "O": "or", "U": "or", "CON": "with", "POR": "for/by", "PARA": "for/to", "QUE": "that/which", "DEL": "of the", "MAS": "more", "UNO": "one", "SIN": "without", "MUY": "very", "LES": "them", "ASI": "like this", "COMO": "like/as", "TODO": "all", "ESTE": "this", "ESTA": "this/is", "PERO": "but", "BIEN": "well", "CUAN": "how", "AÑO": "year", "DIAS": "days", "ERAN": "were", "ESOS": "those", "ESAS": "those", "COMPETENCIA": "competition", "ESTUDIAN": "they study", "TODOS": "everyone/all", "GANARA": "will win", "EQUIPO": "team", "SCIENCE": "Science", "OLYMPIAD": "Olympiad"
 }
+
+# Helper translation function to render quick inline paragraph decipherments
+def translate_paragraph(text_in):
+    words = text_in.upper().split()
+    translated_words = []
+    for w in words:
+        cleaned = "".join([c for c in w if c in (string.ascii_uppercase + "Ñ")])
+        translated_words.append(word_translator.get(cleaned, f"[{w.lower()}]"))
+    return " ".join(translated_words)
 
 # Main Input Layout
 user_input = st.text_area("Spanish Text Input:", placeholder="Paste text here...", height=120)
@@ -92,21 +86,21 @@ with st.sidebar:
     st.header("📊 Reference Center")
     if st.button("🗑️ Reset Prompt History"):
         st.session_state.accumulated_text = ""
+        st.session_state.past_prompts_list = []
         st.success("History reset completely!")
         
     with st.expander("🇪🇸 ESP Frequency (Standard Spanish)"):
         st.table(esp_freq_data)
 
-    with st.expander("🧬 Common Prefixes & Suffixes"):
-        st.caption("Extremely useful for identifying repeating patterns at word boundaries:")
-        st.table(affixes_data)
-
     with st.expander("📖 Structural Word Dictionary"):
         st.table([{"Spanish": k, "English Equivalent": v} for k, v in common_words_dict.items()])
 
 if user_input:
-    # Append input cleanly to the historical tracker
-    st.session_state.accumulated_text += " " + user_input.upper()
+    # Ensure no exact consecutive duplicate appends due to Streamlit page re-runs
+    clean_input_upper = user_input.strip().upper()
+    if not st.session_state.past_prompts_list or st.session_state.past_prompts_list[-1] != clean_input_upper:
+        st.session_state.accumulated_text += " " + clean_input_upper
+        st.session_state.past_prompts_list.append(clean_input_upper)
     
     # Process current and cumulative strings
     valid_letters = string.ascii_uppercase + "Ñ"
@@ -125,7 +119,6 @@ if user_input:
 
     # Gather data from history
     hist_letters, hist_2, hist_3, hist_4 = process_data(st.session_state.accumulated_text)
-    # Gather data from current text
     _, curr_2, _, _ = process_data(user_input.upper())
 
     # Create Columns for Parallel Layout View
@@ -147,7 +140,7 @@ if user_input:
         prompt_freq_table = []
         for letter, count in hist_counts.most_common():
             prompt_freq_table.append({"Letter": letter, "Count": f"{count} ({(count/total_hist)*100:.1f}%)"})
-        st.table(prompt_freq_table[:12]) # Show top 12 active historical inputs dynamically
+        st.table(prompt_freq_table[:12])
 
     # Section 3: Word Length Leaders From Prompts Dashboard
     st.subheader("🏆 5 Most Frequent Word Forms in Prompts")
@@ -169,6 +162,44 @@ if user_input:
     if curr_2:
         st.subheader("💡 Active Cryptographic Breakdowns")
         for w in sorted(list(set(curr_2))):
-            first_char = w[0]
-            if first_char in spanish_two_letter_rules:
-                st.info(f"Since **{w}** starts with **{first_char}**: It typically matches: {spanish_two_letter_rules[first_char]}")
+            if w in spanish_two_letter_rules:
+                st.info(f"Since **{w}** starts with **{w[0]}**: It typically matches: {spanish_two_letter_rules[w[0]]}")
+
+# Section 4: History Ledger (Always Visible if Data Exists)
+if st.session_state.past_prompts_list:
+    st.markdown("---")
+    st.subheader("📜 Past Inputs Ledger & Translations")
+    
+    history_table_data = []
+    for idx, prompt in enumerate(st.session_state.past_prompts_list, start=1):
+        rough_translation = translate_paragraph(prompt)
+        history_table_data.append({
+            "ID": idx,
+            "Original Spanish Input": prompt if len(prompt) < 60 else prompt[:57] + "...",
+            "Structural English Guess": rough_translation if len(rough_translation) < 60 else rough_translation[:57] + "..."
+        })
+    st.table(history_table_data)
+
+    st.subheader("🔍 Look Up Letter Frequencies of a Past Input")
+    dropdown_options = [f"Input #{i}: {p[:40]}..." for i, p in enumerate(st.session_state.past_prompts_list, start=1)]
+    selected_option = st.selectbox("Select a prompt to isolate its letter breakdowns:", dropdown_options)
+    
+    if selected_option:
+        # Extract the index number from the dropdown selection text string
+        selected_index = int(selected_option.split(":")[0].replace("Input #", "")) - 1
+        chosen_prompt = st.session_state.past_prompts_list[selected_index]
+        
+        # Calculate isolated metrics
+        chosen_letters = [c for c in chosen_prompt if c in (string.ascii_uppercase + "Ñ")]
+        chosen_total = len(chosen_letters) or 1
+        chosen_counts = collections.Counter(chosen_letters)
+        
+        isolated_table = []
+        for letter, count in chosen_counts.most_common():
+            isolated_table.append({
+                "Letter": letter, 
+                "Count": count, 
+                "Percentage": f"{(count/chosen_total)*100:.1f}%"
+            })
+        st.write(f"**Letter Distribution Details for Input #{selected_index + 1}:**")
+        st.table(isolated_table[:8]) # Displays the top 8 letters of that selected past prompt
