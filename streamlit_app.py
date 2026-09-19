@@ -5,7 +5,7 @@ import string
 # Set up mobile page configuration
 st.set_page_config(page_title="Xenocrypt Solver Pro", page_icon="📝", layout="centered")
 
-st.title("📝 Xenocrypt Analyzer Pro v2")
+st.title("📝 Xenocrypt Analyzer Pro v3")
 st.write("Paste your Spanish text below to extract key Codebusters data.")
 
 # Initialize persistent session storage for accumulated prompt text
@@ -49,6 +49,21 @@ esp_freq_data = [
     {"Letter": "X", "Pct": "0.2%"},  {"Letter": "W", "Pct": "0.1%"},  {"Letter": "K", "Pct": "0.1%"}
 ]
 
+# Common Spanish Prefixes and Suffixes for Cryptography
+affixes_data = [
+    {"Type": "Prefix", "Pattern": "DES-", "Meaning": "Undoing / Opposite (like un-/dis-)", "Example": "deshacer (undo)"},
+    {"Type": "Prefix", "Prefix": "CON- / COM-", "Meaning": "With / Together (like con-)", "Example": "compartir (share)"},
+    {"Type": "Prefix", "Pattern": "IN- / IM-", "Meaning": "Not / Opposite (like in-/im-)", "Example": "incapaz (incapable)"},
+    {"Type": "Prefix", "Pattern": "RE-", "Meaning": "Repetition / Intensity (like re-)", "Example": "reorganizar (reorganize)"},
+    {"Type": "Prefix", "Pattern": "PRE-", "Meaning": "Before (like pre-)", "Example": "predecir (predict)"},
+    {"Type": "Suffix", "Pattern": "-CIÓN / -SIÓN", "Meaning": "Action / Condition (like -tion)", "Example": "nación (nation)"},
+    {"Type": "Suffix", "Pattern": "-DAD / -TAD", "Meaning": "State of being (like -ty)", "Example": "felicidad (happiness)"},
+    {"Type": "Suffix", "Pattern": "-MENTE", "Meaning": "Adverb marker (like -ly)", "Example": "rápidamente (quickly)"},
+    {"Type": "Suffix", "Pattern": "-DOR / -DORA", "Meaning": "Person / Tool doing action (like -er)", "Example": "trabajador (worker)"},
+    {"Type": "Suffix", "Pattern": "-ADO / -IDO", "Meaning": "Past participle endings (like -ed)", "Example": "hablado (spoken)"},
+    {"Type": "Suffix", "Pattern": "-OSO / -OSA", "Meaning": "Full of / Having (like -ous)", "Example": "famoso (famous)"}
+]
+
 # Cryptographic rules lookup for Spanish 2-letter starting letters
 spanish_two_letter_rules = {
     "A": "AL (to the), AS (ace/you have), AN (they have)",
@@ -81,6 +96,10 @@ with st.sidebar:
         
     with st.expander("🇪🇸 ESP Frequency (Standard Spanish)"):
         st.table(esp_freq_data)
+
+    with st.expander("🧬 Common Prefixes & Suffixes"):
+        st.caption("Extremely useful for identifying repeating patterns at word boundaries:")
+        st.table(affixes_data)
 
     with st.expander("📖 Structural Word Dictionary"):
         st.table([{"Spanish": k, "English Equivalent": v} for k, v in common_words_dict.items()])
@@ -150,5 +169,6 @@ if user_input:
     if curr_2:
         st.subheader("💡 Active Cryptographic Breakdowns")
         for w in sorted(list(set(curr_2))):
-            if w[0] in spanish_two_letter_rules:
-                st.info(f"Since **{w}** starts with **{w[0]}**: It typically matches: {spanish_two_letter_rules[w[0]]}")
+            first_char = w[0]
+            if first_char in spanish_two_letter_rules:
+                st.info(f"Since **{w}** starts with **{first_char}**: It typically matches: {spanish_two_letter_rules[first_char]}")
