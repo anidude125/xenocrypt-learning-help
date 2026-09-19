@@ -3,31 +3,51 @@ import collections
 import string
 
 # Set up mobile page configuration
-st.set_page_config(page_title="Xenocrypt Solver", page_icon="📝", layout="centered")
+st.set_page_config(page_title="Xenocrypt Solver Pro", page_icon="📝", layout="centered")
 
-st.title("📝 Xenocrypt Analyzer Pro")
+st.title("📝 Xenocrypt Analyzer Pro v2")
 st.write("Paste your Spanish text below to extract key Codebusters data.")
 
-# Large, mobile-friendly text input area
-user_input = st.text_area("Spanish Text Input:", placeholder="Paste text here...", height=150)
+# Initialize persistent session storage for accumulated prompt text
+if "accumulated_text" not in st.session_state:
+    st.session_state.accumulated_text = ""
 
-# Reference Dictionary for the most common words (Spanish to English equivalents)
+# Base Spanish Dictionary (Expanded Structure Words)
 common_words_dict = {
     "EL / LA / LOS / LAS": "the",
-    "Y": "and",
+    "Y / E": "and",
+    "O / U": "or",
     "EN": "in / on / at",
     "DE": "of / from",
-    "QUE": "that / which / who",
-    "UN / UNA": "a / an",
-    "ES / SON": "is / are",
-    "POR / PARA": "for / by",
+    "QUE": "that / which / who / than",
+    "UN / UNA / UNOS / UNAS": "a / an / some",
+    "ES / SON / ESTA / ESTAN": "is / are",
+    "POR / PARA": "for / by / to",
     "CON": "with",
-    "SU": "his / her / their",
-    "LO": "it (object marker)",
+    "SIN": "without",
+    "SU / SUS": "his / her / their / your",
+    "LO / LE / LA / LOS / LES": "it / him / her / them (pronouns)",
     "SI": "if / yes",
-    "COMO": "as / like",
-    "PERO": "but"
+    "COMO": "as / like / how",
+    "PERO": "but",
+    "MAS / MENOS": "more / less",
+    "ESTE / ESTA / ESTO": "this",
+    "TODO / TODOS": "all / everything / everyone",
+    "MUY": "very"
 }
+
+# Standard Spanish Letter Frequencies Benchmark Data
+esp_freq_data = [
+    {"Letter": "E", "Pct": "13.7%"}, {"Letter": "A", "Pct": "11.7%"}, {"Letter": "O", "Pct": "9.7%"},
+    {"Letter": "L", "Pct": "5.5%"},  {"Letter": "S", "Pct": "7.2%"},  {"Letter": "N", "Pct": "6.8%"},
+    {"Letter": "R", "Pct": "6.4%"},  {"Letter": "I", "Pct": "5.3%"},  {"Letter": "D", "Pct": "4.7%"},
+    {"Letter": "T", "Pct": "4.6%"},  {"Letter": "C", "Pct": "4.1%"},  {"Letter": "U", "Pct": "4.0%"},
+    {"Letter": "M", "Pct": "2.7%"},  {"Letter": "P", "Pct": "2.4%"},  {"Letter": "B", "Pct": "1.4%"},
+    {"Letter": "G", "Pct": "1.0%"},  {"Letter": "V", "Pct": "1.1%"},  {"Letter": "Y", "Pct": "0.9%"},
+    {"Letter": "Q", "Pct": "0.9%"},  {"Letter": "H", "Pct": "0.9%"},  {"Letter": "F", "Pct": "0.7%"},
+    {"Letter": "Z", "Pct": "0.5%"},  {"Letter": "J", "Pct": "0.5%"},  {"Letter": "Ñ", "Pct": "0.3%"},
+    {"Letter": "X", "Pct": "0.2%"},  {"Letter": "W", "Pct": "0.1%"},  {"Letter": "K", "Pct": "0.1%"}
+]
 
 # Cryptographic rules lookup for Spanish 2-letter starting letters
 spanish_two_letter_rules = {
@@ -42,59 +62,93 @@ spanish_two_letter_rules = {
     "U": "UN (a/an)"
 }
 
-# Sidebar / Expander Reference (Always visible or toggleable on mobile)
-with st.expander("📖 Top Spanish Word Dictionary", expanded=False):
-    st.write("These represent English fundamentals ('the', 'and', 'it', 'is') mapped to Spanish equivalents:")
-    # Display as a clean table
-    st.table([{"Spanish Word": k, "English Meaning": v} for k, v in common_words_dict.items()])
+# Translation helper map for length-specific automated dictionary lookups
+word_translator = {
+    "EL": "the", "LA": "the", "DE": "of/from", "EN": "in/on", "UN": "a/an", "ES": "is", "SU": "his/her", "AL": "to the", "LO": "it", "NO": "no", "SI": "if/yes", "ME": "me", "MI": "my", "SE": "oneself", "TE": "you", "TU": "your", "NI": "neither",
+    "QUE": "that/which", "LOS": "the", "LAS": "the", "CON": "with", "POR": "for/by", "UNA": "a/an", "SON": "are", "DEL": "of the", "MAS": "more", "UNO": "one", "SIN": "without", "MUY": "very", "LES": "them", "ASI": "like this",
+    "PARA": "for/to", "COMO": "like/as", "TODO": "all", "ESTE": "this", "ESTA": "this/is", "PERO": "but", "BIEN": "well", "CUAN": "how", "AÑO": "year", "DIAS": "days", "ERAN": "were", "ESOS": "those", "ESAS": "those"
+}
+
+# Main Input Layout
+user_input = st.text_area("Spanish Text Input:", placeholder="Paste text here...", height=120)
+
+# Sidebar UI Elements for References
+with st.sidebar:
+    st.header("📊 Reference Center")
+    if st.button("🗑️ Reset Prompt History"):
+        st.session_state.accumulated_text = ""
+        st.success("History reset completely!")
+        
+    with st.expander("🇪🇸 ESP Frequency (Standard Spanish)"):
+        st.table(esp_freq_data)
+
+    with st.expander("📖 Structural Word Dictionary"):
+        st.table([{"Spanish": k, "English Equivalent": v} for k, v in common_words_dict.items()])
 
 if user_input:
-    # Standardize to uppercase and include Spanish Ñ
-    text = user_input.upper()
+    # Append input cleanly to the historical tracker
+    st.session_state.accumulated_text += " " + user_input.upper()
+    
+    # Process current and cumulative strings
     valid_letters = string.ascii_uppercase + "Ñ"
     
-    words = text.split()
-    two_letter_words = set()
-    three_letter_words = set()
-    clean_letter_list = []
-    
-    for word in words:
-        cleaned_word = "".join([c for c in word if c in valid_letters])
-        if len(cleaned_word) == 2:
-            two_letter_words.add(cleaned_word)
-        elif len(cleaned_word) == 3:
-            three_letter_words.add(cleaned_word)
-        for letter in cleaned_word:
-            clean_letter_list.append(letter)
+    def process_data(target_text):
+        words = target_text.split()
+        two_l, three_l, four_l = [], [], []
+        letters_list = []
+        for word in words:
+            cleaned = "".join([c for c in word if c in valid_letters])
+            if len(cleaned) == 2: two_l.append(cleaned)
+            elif len(cleaned) == 3: three_l.append(cleaned)
+            elif len(cleaned) == 4: four_l.append(cleaned)
+            for letter in cleaned: letters_list.append(letter)
+        return letters_list, two_l, three_l, four_l
 
-    total_letters = len(clean_letter_list)
-    letter_counts = collections.Counter(clean_letter_list)
+    # Gather data from history
+    hist_letters, hist_2, hist_3, hist_4 = process_data(st.session_state.accumulated_text)
+    # Gather data from current text
+    _, curr_2, _, _ = process_data(user_input.upper())
+
+    # Create Columns for Parallel Layout View
+    col1, col2 = st.columns(2)
     
-    # Display Results
-    st.subheader("📊 Letter Frequencies")
-    st.caption("Standard Spanish Expected Top Letters: E, A, O, S, N")
+    with col1:
+        st.subheader("📋 Current Text Analysis")
+        letter_counts = collections.Counter(process_data(user_input.upper())[0])
+        total_curr = len(process_data(user_input.upper())[0]) or 1
+        curr_freq = ""
+        for letter, count in letter_counts.most_common(10):
+            curr_freq += f"**{letter}:** {count} times ({(count/total_curr)*100:.1f}%)\n\n"
+        st.markdown(curr_freq)
+
+    with col2:
+        st.subheader("📈 Prompt Frequency (All Inputs)")
+        hist_counts = collections.Counter(hist_letters)
+        total_hist = len(hist_letters) or 1
+        prompt_freq_table = []
+        for letter, count in hist_counts.most_common():
+            prompt_freq_table.append({"Letter": letter, "Count": f"{count} ({(count/total_hist)*100:.1f}%)"})
+        st.table(prompt_freq_table[:12]) # Show top 12 active historical inputs dynamically
+
+    # Section 3: Word Length Leaders From Prompts Dashboard
+    st.subheader("🏆 5 Most Frequent Word Forms in Prompts")
     
-    freq_output = ""
-    for letter, count in letter_counts.most_common():
-        percentage = (count / total_letters) * 100
-        freq_output += f"**Letter {letter}:** {count} times ({percentage:.1f}%)\n\n"
-    st.markdown(freq_output)
-        
-    st.subheader("📌 2-Letter Words Found")
-    if two_letter_words:
-        st.write(", ".join(sorted(two_letter_words)))
-        
-        # New Feature: Smart Rule Engine based on his parsed text
-        st.markdown("##### 💡 Cryptographic Breakdowns:")
-        for w in sorted(two_letter_words):
-            first_char = w[0]
-            if first_char in spanish_two_letter_rules:
-                st.info(f"Since your word starts with **{first_char}**, in Spanish it can practically only be: **{spanish_two_letter_rules[first_char]}**")
-            else:
-                st.warning(f"Word **{w}** starts with **{first_char}**. This is highly uncommon for valid Spanish starter letters. Check for an alignment or wrap-around error!")
-    else:
-        st.write("_None found_")
-    
-    st.subheader("📌 3-Letter Words Found")
-    st.caption("Look for: QUE, LOS, LAS, CON, POR")
-    st.write(", ".join(sorted(three_letter_words)) if three_letter_words else "_None found_")
+    def get_top_5_table(word_list):
+        counts = collections.Counter(word_list).most_common(5)
+        table_out = []
+        for rank, (word, count) in enumerate(counts, start=1):
+            translation = word_translator.get(word, "_Unknown / Name_")
+            table_out.append({"Rank": rank, "Word": word, "Count Found": count, "Likely Meaning": translation})
+        return table_out
+
+    t1, t2, t3 = st.tabs(["2-Letter Top 5", "3-Letter Top 5", "4-Letter Top 5"])
+    with t1: st.table(get_top_5_table(hist_2))
+    with t2: st.table(get_top_5_table(hist_3))
+    with t3: st.table(get_top_5_table(hist_4))
+
+    # Cryptographic Help Callouts Based On Real-Time Detections
+    if curr_2:
+        st.subheader("💡 Active Cryptographic Breakdowns")
+        for w in sorted(list(set(curr_2))):
+            if w[0] in spanish_two_letter_rules:
+                st.info(f"Since **{w}** starts with **{w[0]}**: It typically matches: {spanish_two_letter_rules[w[0]]}")
