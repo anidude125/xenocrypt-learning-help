@@ -1,11 +1,12 @@
 import streamlit as st
 import collections
 import string
+from deep_translator import GoogleTranslator
 
 # Set up mobile page configuration
 st.set_page_config(page_title="Xenocrypt Solver Pro", page_icon="📝", layout="centered")
 
-st.title("📝 Xenocrypt Analyzer Pro v4")
+st.title("📝 Xenocrypt Analyzer Pro v5")
 st.write("Paste your Spanish text below to extract key Codebusters data.")
 
 # Initialize persistent session storage arrays
@@ -66,17 +67,8 @@ spanish_two_letter_rules = {
 
 # Translation helper map for length-specific automated dictionary lookups
 word_translator = {
-    "EL": "the", "LA": "the", "LOS": "the", "LAS": "the", "DE": "of/from", "EN": "in/on", "UN": "a/an", "UNA": "a/an", "ES": "is", "SON": "are", "SU": "his/her", "AL": "to the", "LO": "it", "NO": "no", "SI": "if/yes", "ME": "me", "MI": "my", "SE": "oneself", "TE": "you", "TU": "your", "NI": "neither", "Y": "and", "E": "and", "O": "or", "U": "or", "CON": "with", "POR": "for/by", "PARA": "for/to", "QUE": "that/which", "DEL": "of the", "MAS": "more", "UNO": "one", "SIN": "without", "MUY": "very", "LES": "them", "ASI": "like this", "COMO": "like/as", "TODO": "all", "ESTE": "this", "ESTA": "this/is", "PERO": "but", "BIEN": "well", "CUAN": "how", "AÑO": "year", "DIAS": "days", "ERAN": "were", "ESOS": "those", "ESAS": "those", "COMPETENCIA": "competition", "ESTUDIAN": "they study", "TODOS": "everyone/all", "GANARA": "will win", "EQUIPO": "team", "SCIENCE": "Science", "OLYMPIAD": "Olympiad"
+    "EL": "the", "LA": "the", "LOS": "the", "LAS": "the", "DE": "of/from", "EN": "in/on", "UN": "a/an", "UNA": "a/an", "ES": "is", "SON": "are", "SU": "his/her", "AL": "to the", "LO": "it", "NO": "no", "SI": "if/yes", "ME": "me", "MI": "my", "SE": "oneself", "TE": "you", "TU": "your", "NI": "neither", "Y": "and", "E": "and", "O": "or", "U": "or", "CON": "with", "POR": "for/by", "PARA": "for/to", "QUE": "that/which", "DEL": "of the", "MAS": "more", "UNO": "one", "SIN": "without", "MUY": "very", "LES": "them", "ASI": "like this", "COMO": "like/as", "TODO": "all", "ESTE": "this", "ESTA": "this/is", "PERO": "but", "BIEN": "well", "CUAN": "how", "AÑO": "year", "DIAS": "days", "ERAN": "were", "ESOS": "those", "ESAS": "those"
 }
-
-# Helper translation function to render quick inline paragraph decipherments
-def translate_paragraph(text_in):
-    words = text_in.upper().split()
-    translated_words = []
-    for w in words:
-        cleaned = "".join([c for c in w if c in (string.ascii_uppercase + "Ñ")])
-        translated_words.append(word_translator.get(cleaned, f"[{w.lower()}]"))
-    return " ".join(translated_words)
 
 # Main Input Layout
 user_input = st.text_area("Spanish Text Input:", placeholder="Paste text here...", height=120)
@@ -96,13 +88,11 @@ with st.sidebar:
         st.table([{"Spanish": k, "English Equivalent": v} for k, v in common_words_dict.items()])
 
 if user_input:
-    # Ensure no exact consecutive duplicate appends due to Streamlit page re-runs
     clean_input_upper = user_input.strip().upper()
     if not st.session_state.past_prompts_list or st.session_state.past_prompts_list[-1] != clean_input_upper:
         st.session_state.accumulated_text += " " + clean_input_upper
         st.session_state.past_prompts_list.append(clean_input_upper)
     
-    # Process current and cumulative strings
     valid_letters = string.ascii_uppercase + "Ñ"
     
     def process_data(target_text):
@@ -117,17 +107,15 @@ if user_input:
             for letter in cleaned: letters_list.append(letter)
         return letters_list, two_l, three_l, four_l
 
-    # Gather data from history
     hist_letters, hist_2, hist_3, hist_4 = process_data(st.session_state.accumulated_text)
     _, curr_2, _, _ = process_data(user_input.upper())
 
-    # Create Columns for Parallel Layout View
     col1, col2 = st.columns(2)
     
     with col1:
         st.subheader("📋 Current Text Analysis")
-        letter_counts = collections.Counter(process_data(user_input.upper())[0])
-        total_curr = len(process_data(user_input.upper())[0]) or 1
+        letter_counts = collections.Counter(process_data(user_input.upper()))
+        total_curr = len(process_data(user_input.upper())) or 1
         curr_freq = ""
         for letter, count in letter_counts.most_common(10):
             curr_freq += f"**{letter}:** {count} times ({(count/total_curr)*100:.1f}%)\n\n"
@@ -142,7 +130,6 @@ if user_input:
             prompt_freq_table.append({"Letter": letter, "Count": f"{count} ({(count/total_hist)*100:.1f}%)"})
         st.table(prompt_freq_table[:12])
 
-    # Section 3: Word Length Leaders From Prompts Dashboard
     st.subheader("🏆 5 Most Frequent Word Forms in Prompts")
     
     def get_top_5_table(word_list):
@@ -158,25 +145,29 @@ if user_input:
     with t2: st.table(get_top_5_table(hist_3))
     with t3: st.table(get_top_5_table(hist_4))
 
-    # Cryptographic Help Callouts Based On Real-Time Detections
     if curr_2:
         st.subheader("💡 Active Cryptographic Breakdowns")
         for w in sorted(list(set(curr_2))):
             if w in spanish_two_letter_rules:
                 st.info(f"Since **{w}** starts with **{w[0]}**: It typically matches: {spanish_two_letter_rules[w[0]]}")
 
-# Section 4: History Ledger (Always Visible if Data Exists)
+# Section 4: History Ledger (With Direct Paragraph Translation)
 if st.session_state.past_prompts_list:
     st.markdown("---")
     st.subheader("📜 Past Inputs Ledger & Translations")
     
     history_table_data = []
     for idx, prompt in enumerate(st.session_state.past_prompts_list, start=1):
-        rough_translation = translate_paragraph(prompt)
+        try:
+            # Performs a clean, natural sentence-level translation
+            clean_english_translation = GoogleTranslator(source='es', target='en').translate(prompt)
+        except Exception:
+            clean_english_translation = "[Translation Service Offline]"
+
         history_table_data.append({
             "ID": idx,
             "Original Spanish Input": prompt if len(prompt) < 60 else prompt[:57] + "...",
-            "Structural English Guess": rough_translation if len(rough_translation) < 60 else rough_translation[:57] + "..."
+            "English Translation": clean_english_translation
         })
     st.table(history_table_data)
 
@@ -185,11 +176,10 @@ if st.session_state.past_prompts_list:
     selected_option = st.selectbox("Select a prompt to isolate its letter breakdowns:", dropdown_options)
     
     if selected_option:
-        # Extract the index number from the dropdown selection text string
+        # Extract index safely from the select box option string mapping
         selected_index = int(selected_option.split(":")[0].replace("Input #", "")) - 1
         chosen_prompt = st.session_state.past_prompts_list[selected_index]
         
-        # Calculate isolated metrics
         chosen_letters = [c for c in chosen_prompt if c in (string.ascii_uppercase + "Ñ")]
         chosen_total = len(chosen_letters) or 1
         chosen_counts = collections.Counter(chosen_letters)
@@ -202,4 +192,4 @@ if st.session_state.past_prompts_list:
                 "Percentage": f"{(count/chosen_total)*100:.1f}%"
             })
         st.write(f"**Letter Distribution Details for Input #{selected_index + 1}:**")
-        st.table(isolated_table[:8]) # Displays the top 8 letters of that selected past prompt
+        st.table(isolated_table[:8])
