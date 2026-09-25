@@ -108,14 +108,15 @@ if user_input:
         return letters_list, two_l, three_l, four_l
 
     hist_letters, hist_2, hist_3, hist_4 = process_data(st.session_state.accumulated_text)
-    _, curr_2, _, _ = process_data(user_input.upper())
+    curr_letters, curr_2, _, _ = process_data(user_input.upper())
 
     col1, col2 = st.columns(2)
     
     with col1:
         st.subheader("📋 Current Text Analysis")
-        letter_counts = collections.Counter(process_data(user_input.upper()))
-        total_curr = len(process_data(user_input.upper())) or 1
+        # FIXED: Feed ONLY the letter list index [0] to the Counter engine instead of the full tuple response object
+        letter_counts = collections.Counter(curr_letters)
+        total_curr = len(curr_letters) or 1
         curr_freq = ""
         for letter, count in letter_counts.most_common(10):
             curr_freq += f"**{letter}:** {count} times ({(count/total_curr)*100:.1f}%)\n\n"
@@ -149,7 +150,7 @@ if user_input:
         st.subheader("💡 Active Cryptographic Breakdowns")
         for w in sorted(list(set(curr_2))):
             if w in spanish_two_letter_rules:
-                st.info(f"Since **{w}** starts with **{w[0]}**: It typically matches: {spanish_two_letter_rules[w[0]]}")
+                st.info(f"Since **{w}** starts with **{w}**: It typically matches: {spanish_two_letter_rules[w]}")
 
 # Section 4: History Ledger (With Direct Paragraph Translation)
 if st.session_state.past_prompts_list:
@@ -159,7 +160,6 @@ if st.session_state.past_prompts_list:
     history_table_data = []
     for idx, prompt in enumerate(st.session_state.past_prompts_list, start=1):
         try:
-            # Performs a clean, natural sentence-level translation
             clean_english_translation = GoogleTranslator(source='es', target='en').translate(prompt)
         except Exception:
             clean_english_translation = "[Translation Service Offline]"
@@ -176,7 +176,7 @@ if st.session_state.past_prompts_list:
     selected_option = st.selectbox("Select a prompt to isolate its letter breakdowns:", dropdown_options)
     
     if selected_option:
-        # Extract index safely from the select box option string mapping
+        # Fixed calculation parsing string safely to extract index integer
         selected_index = int(selected_option.split(":")[0].replace("Input #", "")) - 1
         chosen_prompt = st.session_state.past_prompts_list[selected_index]
         
